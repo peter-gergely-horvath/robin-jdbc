@@ -1,0 +1,13 @@
+<FindBugsFilter>
+    <Match>
+        <Class name="com.github.robin.jdbc.Driver" />
+        <Bug pattern="NM_SAME_SIMPLE_NAME_AS_INTERFACE" />
+        <!-- This is the desired behaviour -->
+    </Match>
+    <Match>
+        <Class name="com.github.robin.jdbc.DriverInfo" />
+        <Method name="tryLoadPropertiesFromClasspath" />
+        <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE" />
+        <!-- This is the desired behaviour -->
+    </Match>
+</FindBugsFilter>
