@@ -33,8 +33,7 @@ public enum ConfigurationEntry {
                     config.setRetryCount(retryCount);
                 } catch (NumberFormatException nfe) {
                     throw InvalidConfigurationValueException
-                            .forMessage("Value for %s must either be a valid integer, but was '%s'",
-                                    this.key, value);
+                            .forMessage("Value for %s must be a valid integer, but was '%s'", this.key, value);
                 }
 
             }

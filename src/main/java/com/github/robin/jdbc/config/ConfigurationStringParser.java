@@ -17,8 +17,11 @@
 
 package com.github.robin.jdbc.config;
 
+import java.util.Arrays;
 import java.util.Properties;
+import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.stream.Collectors;
 
 final class ConfigurationStringParser {
 
@@ -27,6 +30,10 @@ final class ConfigurationStringParser {
     }
 
     private static final String CONFIGURATION_STRING_ENTRY_DELIMITER = ";";
+
+    private static final Set<String> VALID_CONFIGURATION_KEYS = Arrays.stream(ConfigurationEntry.values())
+            .map(ConfigurationEntry::getKey)
+            .collect(Collectors.toSet());
 
     static Properties parseStringToProperties(String configurationString) throws MisconfigurationException {
         Properties properties = new Properties();
@@ -47,6 +54,10 @@ final class ConfigurationStringParser {
 
                 String key = keyAndValue[0];
                 String value = keyAndValue[1];
+
+                if (!VALID_CONFIGURATION_KEYS.contains(key)) {
+                    throw MisconfigurationException.forMessage("Unknown configuration key: '%s'.", key);
+                }
 
                 if (properties.containsKey(key)) {
                     /* configuration string contains duplicated entries;
