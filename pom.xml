@@ -48,9 +48,8 @@
     <!-- Project configuration -->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <displayName>Robin JDBC driver</displayName>
-    <javaVersion>8</javaVersion>
-    <maven.compiler.source>1.${javaVersion}</maven.compiler.source>
-    <maven.compiler.target>1.${javaVersion}</maven.compiler.target>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
 
     <!-- Dependency versions: used for testing ONLY -->
     <testng.version>6.8.21</testng.version>
@@ -90,6 +89,14 @@
       <version>${testng.version}</version>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <version>2.1.214</version>
+      <scope>test</scope>
+    </dependency>
+
 
     <dependency>
       <groupId>org.easymock</groupId>
@@ -173,14 +180,16 @@
               <findbugsXmlOutputDirectory>${project.build.directory}/findbugs</findbugsXmlOutputDirectory>
             </configuration>
             <executions>
-              <!-- Ensures that FindBugs inspects source code when project is compiled. -->
+              <!--
+              Findbugs is disabled for now...
+              Ensures that FindBugs inspects source code when project is compiled.
               <execution>
                 <id>analyze-compile</id>
                 <phase>compile</phase>
                 <goals>
                   <goal>check</goal>
                 </goals>
-              </execution>
+              </execution>-->
             </executions>
           </plugin>
 
@@ -403,6 +412,14 @@
           </archive>
         </configuration>
       </plugin>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+                <source>9</source>
+                <target>9</target>
+            </configuration>
+        </plugin>
     </plugins>
   </build>
 

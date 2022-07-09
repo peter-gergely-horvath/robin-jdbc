@@ -18,15 +18,17 @@
 package com.github.robin.jdbc.config;
 
 
-final class Configuration {
+public final class Configuration {
 
-    private int retryCount;
+    public static final int ATTEMPT_ALL = -1;
 
-    public int getRetryCount() {
-        return retryCount;
+    private int attemptCount;
+
+    public int getAttemptCount() {
+        return attemptCount;
     }
 
-    public void setRetryCount(int retryCount) {
-        this.retryCount = retryCount;
+    public void setAttemptCount(int attemptCount) {
+        this.attemptCount = attemptCount;
     }
 }

@@ -14,11 +14,22 @@
  * limitations under the License.
  */
 
-package com.github.robin.jdbc.config;
+package com.github.robin.jdbc.urlpattern;
 
-import java.util.Properties;
+import java.util.Collections;
+import java.util.List;
 
-public interface ConfigurationFactory {
-    Configuration newConfiguration(String config, Properties props)
-            throws MisconfigurationException;
+public final class UrlPatternParser {
+
+    private static final UrlPatternParser INSTANCE = new UrlPatternParser();
+
+    public static UrlPatternParser getInstance() {
+        return INSTANCE;
+    }
+
+    public List<String> getURLs(String urlPattern) {
+        // TODO: implement actual pattern parsing here
+        return Collections.singletonList(urlPattern);
+    }
+
 }

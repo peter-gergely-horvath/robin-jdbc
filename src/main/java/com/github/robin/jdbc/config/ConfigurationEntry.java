@@ -21,16 +21,22 @@ import java.sql.DriverPropertyInfo;
 
 public enum ConfigurationEntry {
 
-    RETRY_COUNT("retryCount", "-1",
-            "Number of alternative servers to try connecting after an initial connection failed. "
-                    + "-1 to try all known servers.") {
+    ATTEMPT_COUNT("attemptCount", Integer.toString(Configuration.ATTEMPT_ALL),
+            "Number of servers to try connecting before giving up. To attempt all servers: "
+                    + Configuration.ATTEMPT_ALL) {
         @Override
         void setConfiguration(Configuration config, String value) throws MisconfigurationException {
             if (value != null && value.trim().length() != 0) {
 
                 try {
                     int retryCount = Integer.parseInt(value);
-                    config.setRetryCount(retryCount);
+                    if (retryCount < 1 && retryCount != Configuration.ATTEMPT_ALL) {
+                        throw InvalidConfigurationValueException
+                                .forMessage("Value for %s must be a positive integer, or %s but was '%s'",
+                                        this.key, Configuration.ATTEMPT_ALL, value);
+                    }
+
+                    config.setAttemptCount(retryCount);
                 } catch (NumberFormatException nfe) {
                     throw InvalidConfigurationValueException
                             .forMessage("Value for %s must be a valid integer, but was '%s'", this.key, value);

@@ -20,23 +20,85 @@ package com.github.robin.jdbc;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.sql.DriverManager;
-import java.sql.SQLException;
-
-import static org.testng.Assert.fail;
+import java.sql.*;
 
 
 public class DriverTest {
 
     @Test
-    public void testConnection() {
-        try {
-            DriverManager.getConnection("jdbc:robin:retryCount=1;jdbc:h2:mem:foobar");
+    public void testLoadBalancerWithSingleURL() throws SQLException {
+        try (Connection connection =
+                     DriverManager.getConnection("jdbc:robin:loadbalancer:attemptCount=3;jdbc:h2:mem:foobar")) {
 
-            fail("should have thrown an exception");
+            String queryResult;
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "select * from INFORMATION_SCHEMA.INFORMATION_SCHEMA_CATALOG_NAME")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    rs.next();
+                    queryResult = rs.getString(1);
+                }
+            }
 
+            Assert.assertEquals("FOOBAR", queryResult);
+
+        }
+    }
+
+    @Test
+    public void testLoadbalancerWithSingleURLThatIsInvalid() throws SQLException {
+        try (Connection connection =
+                     DriverManager.getConnection("jdbc:robin:loadbalancer:attemptCount=3;jdbc:foo:bar")) {
+
+            connection.getWarnings();
+
+            Assert.fail("Should have thrown an exception");
         } catch (SQLException sqlException) {
-            Assert.assertTrue(sqlException.getMessage().contains("Not implemented yet:"));
+            Assert.assertTrue(sqlException.getMessage().contains("Could not connect to any of the URLs"));
+        }
+
+    }
+
+    @Test
+    public void testFailoverWithSingleURL() throws SQLException {
+        try (Connection connection =
+                     DriverManager.getConnection("jdbc:robin:failover:attemptCount=3;jdbc:h2:mem:foobar")) {
+
+            String queryResult;
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "select * from INFORMATION_SCHEMA.INFORMATION_SCHEMA_CATALOG_NAME")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    rs.next();
+                    queryResult = rs.getString(1);
+                }
+            }
+
+            Assert.assertEquals("FOOBAR", queryResult);
+
+        }
+    }
+
+    @Test
+    public void testFailoverWithSingleURLThatIsInvalid() throws SQLException {
+        try (Connection connection =
+                     DriverManager.getConnection("jdbc:robin:failover:attemptCount=3;jdbc:foo:bar")) {
+
+            connection.getWarnings();
+
+            Assert.fail("Should have thrown an exception");
+        } catch (SQLException sqlException) {
+            Assert.assertTrue(sqlException.getMessage().contains("Could not connect to any of the URLs"));
+        }
+
+    }
+
+    @Test
+    public void testInvalidWithSingleURL() throws SQLException {
+        try (Connection connection =
+                     DriverManager.getConnection("jdbc:robin:invalid:attemptCount=1;jdbc:h2:mem:foobar")) {
+
+            Assert.fail("Should have thrown an exception");
+        } catch (SQLException sqlException) {
+            Assert.assertTrue(sqlException.getMessage().contains("No such connection type: 'invalid'"));
         }
     }
 }
