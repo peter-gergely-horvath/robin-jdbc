@@ -16,12 +16,9 @@
 
 package com.github.robin.jdbc;
 
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.DriverPropertyInfo;
-import java.sql.Connection;
-import java.sql.SQLFeatureNotSupportedException;
+import com.github.robin.jdbc.config.ConfigurationEntry;
 
+import java.sql.*;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -76,7 +73,12 @@ public final class Driver implements java.sql.Driver {
     }
 
     public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException {
-        return DriverPropertyInfoFactory.getDriverPropertyInfo(url, info);
+        ConfigurationEntry[] input = ConfigurationEntry.values();
+        DriverPropertyInfo[] result = new DriverPropertyInfo[input.length];
+        for (int i = 0; i < input.length; i++) {
+            result[i] = input[i].getDriverPropertyInfo();
+        }
+        return result;
     }
 
     public int getMajorVersion() {

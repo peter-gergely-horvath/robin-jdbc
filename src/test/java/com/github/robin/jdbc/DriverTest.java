@@ -46,10 +46,8 @@ public class DriverTest {
 
     @Test
     public void testLoadbalancerWithSingleURLThatIsInvalid() throws SQLException {
-        try (Connection connection =
-                     DriverManager.getConnection("jdbc:robin:loadbalancer:attemptCount=3;jdbc:foo:bar")) {
-
-            connection.getWarnings();
+        try {
+            DriverManager.getConnection("jdbc:robin:loadbalancer:attemptCount=3;jdbc:foo:bar");
 
             Assert.fail("Should have thrown an exception");
         } catch (SQLException sqlException) {
@@ -79,10 +77,9 @@ public class DriverTest {
 
     @Test
     public void testFailoverWithSingleURLThatIsInvalid() throws SQLException {
-        try (Connection connection =
-                     DriverManager.getConnection("jdbc:robin:failover:attemptCount=3;jdbc:foo:bar")) {
+        try {
 
-            connection.getWarnings();
+            DriverManager.getConnection("jdbc:robin:failover:attemptCount=3;jdbc:foo:bar");
 
             Assert.fail("Should have thrown an exception");
         } catch (SQLException sqlException) {
@@ -93,12 +90,13 @@ public class DriverTest {
 
     @Test
     public void testInvalidWithSingleURL() throws SQLException {
-        try (Connection connection =
-                     DriverManager.getConnection("jdbc:robin:invalid:attemptCount=1;jdbc:h2:mem:foobar")) {
+        try {
+            DriverManager.getConnection("jdbc:robin:invalid:attemptCount=1;jdbc:h2:mem:foobar");
 
             Assert.fail("Should have thrown an exception");
         } catch (SQLException sqlException) {
-            Assert.assertTrue(sqlException.getMessage().contains("No such connection type: 'invalid'"));
+            Assert.assertTrue(sqlException.getMessage().contains(
+                    "Invalid JDBC URL: connection type must be 'loadbalancer' or 'failover'"));
         }
     }
 }

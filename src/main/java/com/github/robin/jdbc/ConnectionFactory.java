@@ -17,35 +17,40 @@
  
 package com.github.robin.jdbc;
 
+import com.github.robin.jdbc.config.Configuration;
+import com.github.robin.jdbc.config.ConfigurationFactory;
+import com.github.robin.jdbc.config.DefaultConfigurationFactory;
 import com.github.robin.jdbc.config.MisconfigurationException;
-import com.github.robin.jdbc.connection.FailoverConnection;
-import com.github.robin.jdbc.connection.LoadBalancerConnection;
-import com.github.robin.jdbc.urlpattern.UrlPatternParser;
+import com.github.robin.jdbc.url.UrlPatternParser;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.List;
-import java.util.Locale;
-import java.util.Properties;
+import java.util.*;
+import java.util.logging.Logger;
 
-class ConnectionFactory {
+final class ConnectionFactory {
+
+    private static final Logger LOGGER = Logger.getLogger(ConnectionFactory.class.getName());
 
     private static final ConnectionFactory INSTANCE = new ConnectionFactory(); // thread-safe: no state is held
-
-    ConnectionFactory() {
-        this(UrlPatternParser.getInstance());
-    }
-
-    // Visible for testing
-    ConnectionFactory(UrlPatternParser urlPatternParser) {
-        this.urlPatternParser = urlPatternParser;
-    }
 
     static ConnectionFactory getInstance() {
         return INSTANCE;
     }
 
+    private final ConfigurationFactory configurationFactory;
     private final UrlPatternParser urlPatternParser;
+
+    ConnectionFactory() {
+        this(DefaultConfigurationFactory.getInstance(), UrlPatternParser.getInstance());
+    }
+
+    // Visible for testing
+    ConnectionFactory(ConfigurationFactory configurationFactory, UrlPatternParser urlPatternParser) {
+        this.configurationFactory = configurationFactory;
+        this.urlPatternParser = urlPatternParser;
+    }
 
     Connection newConnection(String factoryConfiguration, Properties properties) throws SQLException {
 
@@ -84,53 +89,76 @@ class ConnectionFactory {
         }
     }
 
+    // Visible for testing
     private Connection newConnection(String connectionTypeName,
-                             String configurationSection,
-                             String delegateUrlPattern,
-                             Properties properties) throws SQLException, MisconfigurationException {
+                                     String configurationSection,
+                                     String delegateUrlPattern,
+                                     Properties properties) throws SQLException, MisconfigurationException {
 
-        ConnectionType connectionType = ConnectionType.getByName(connectionTypeName);
 
-        List<String> urlList = urlPatternParser.getURLs(delegateUrlPattern);
+        if (connectionTypeName == null || connectionTypeName.trim().equals("")) {
+            throw new MisconfigurationException("Invalid JDBC URL: connection type must be specified");
+        }
 
-        return connectionType.newConnection(configurationSection, urlList, properties);
+        Configuration configuration = configurationFactory.newConfiguration(configurationSection, properties);
+
+
+        List<String> urls = urlPatternParser.getURLs(delegateUrlPattern);
+
+        String url;
+        switch (connectionTypeName.toLowerCase(Locale.ENGLISH)) {
+            case "loadbalancer":
+                urls = new LinkedList<>(urls);
+                Collections.shuffle(urls);
+
+                break;
+
+            case "failover":
+                // no-op, we use the original URL order
+                break;
+
+            default:
+                throw new MisconfigurationException("Invalid JDBC URL: connection type must be "
+                        + "'loadbalancer' or 'failover', but was: " + connectionTypeName);
+
+        }
+
+        return connect(urls, properties, configuration);
+
     }
 
-    private enum ConnectionType {
-        LOADBALANCER("loadbalancer") {
-            @Override
-            protected Connection newConnection(String config, List<String> urlList, Properties properties)
-                    throws MisconfigurationException, SQLException {
-                return new LoadBalancerConnection(config, urlList, properties);
-            }
-        },
-        FAILOVER("failover") {
-            @Override
-            protected Connection newConnection(String config, List<String> urlList, Properties properties)
-                    throws MisconfigurationException, SQLException {
-                return new FailoverConnection(config, urlList, properties);
-            }
-        };
+    private Connection connect(List<String> urls,
+                               Properties properties,
+                               Configuration configuration) throws SQLException {
 
-        private final String publicName;
-
-        ConnectionType(String publicName) {
-            this.publicName = publicName;
+        final int attemptCount;
+        if (configuration.getAttemptCount() == Configuration.ATTEMPT_ALL) {
+            attemptCount = urls.size();
+        } else {
+            attemptCount = Math.min(configuration.getAttemptCount(), urls.size());
         }
 
-        private static ConnectionType getByName(String requestedPublicName) throws MisconfigurationException {
-            for (ConnectionType ct : ConnectionType.values()) {
-                if (ct.publicName.equals(requestedPublicName)) {
-                    return ct;
-                }
-            }
+        List<SQLException> caughtExceptions = new LinkedList<>();
 
-            throw MisconfigurationException.forMessage("No such connection type: '%s'", requestedPublicName);
+        for (int i = 0; i < attemptCount; ++i) {
+            try {
+                String url = urls.get(i);
+                return DriverManager.getConnection(url, properties);
+
+            } catch (SQLException sqlException) {
+                caughtExceptions.add(sqlException);
+            }
         }
 
+        SQLException sqlException = new SQLException(String.format(
+                "Could not connect to any of the URLs, giving up after %s attempted connections",
+                caughtExceptions.size()));
 
-        protected abstract Connection newConnection(String config, List<String> urlList, Properties properties)
-                throws MisconfigurationException, SQLException;
+        for (Exception caughtException : caughtExceptions) {
+            sqlException.addSuppressed(caughtException);
+        }
+
+        throw sqlException;
     }
 
 }

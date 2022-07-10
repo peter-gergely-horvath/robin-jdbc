@@ -14,9 +14,23 @@
  * limitations under the License.
  */
 
- 
-package com.github.robin.jdbc.sqlstate;
+package com.github.robin.jdbc.url;
 
-public enum Category {
-    SUCCESS, WARNING, NO_DATA, ERROR
+import java.util.Collections;
+import java.util.List;
+import java.util.regex.Pattern;
+
+public final class UrlPatternParser {
+
+    private static final UrlPatternParser INSTANCE = new UrlPatternParser();
+
+    public static UrlPatternParser getInstance() {
+        return INSTANCE;
+    }
+
+    public List<String> getURLs(String urlPattern) {
+        // TODO: implement actual pattern parsing here
+        return Collections.singletonList(urlPattern);
+    }
+
 }

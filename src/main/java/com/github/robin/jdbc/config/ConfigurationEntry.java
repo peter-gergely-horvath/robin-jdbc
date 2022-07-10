@@ -23,7 +23,7 @@ public enum ConfigurationEntry {
 
     ATTEMPT_COUNT("attemptCount", Integer.toString(Configuration.ATTEMPT_ALL),
             "Number of servers to try connecting before giving up. To attempt all servers: "
-                    + Configuration.ATTEMPT_ALL) {
+                    + Configuration.ATTEMPT_ALL + ".") {
         @Override
         void setConfiguration(Configuration config, String value) throws MisconfigurationException {
             if (value != null && value.trim().length() != 0) {
