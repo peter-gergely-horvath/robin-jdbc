@@ -26,9 +26,10 @@ import java.sql.*;
 public class DriverTest {
 
     @Test
-    public void testLoadBalancerWithSingleURL() throws SQLException {
-        try (Connection connection =
-                     DriverManager.getConnection("jdbc:robin:loadbalancer:attemptCount=3;jdbc:h2:mem:foobar")) {
+    public void testSimpleFailover() throws SQLException {
+        try (Connection connection = DriverManager.getConnection(
+                             "jdbc:robin:failover:template:" +
+                                     "#foreach( $index in [1..2] )jdbc:h2:mem:foobar0$index\n#end")) {
 
             String queryResult;
             try (PreparedStatement ps = connection.prepareStatement(
@@ -39,15 +40,16 @@ public class DriverTest {
                 }
             }
 
-            Assert.assertEquals("FOOBAR", queryResult);
+            Assert.assertEquals("FOOBAR01", queryResult);
 
         }
     }
 
-    @Test
+    @Test(enabled=false)
     public void testLoadbalancerWithSingleURLThatIsInvalid() throws SQLException {
         try {
-            DriverManager.getConnection("jdbc:robin:loadbalancer:attemptCount=3;jdbc:foo:bar");
+            DriverManager.getConnection(
+                    "jdbc:robin:loadbalancer:attemptCount=3;template:jdbc:foo:bar");
 
             Assert.fail("Should have thrown an exception");
         } catch (SQLException sqlException) {
@@ -56,10 +58,10 @@ public class DriverTest {
 
     }
 
-    @Test
+    @Test(enabled=false)
     public void testFailoverWithSingleURL() throws SQLException {
-        try (Connection connection =
-                     DriverManager.getConnection("jdbc:robin:failover:attemptCount=3;jdbc:h2:mem:foobar")) {
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:robin:failover:attemptCount=3;template:jdbc:h2:mem:foobar")) {
 
             String queryResult;
             try (PreparedStatement ps = connection.prepareStatement(
@@ -75,11 +77,11 @@ public class DriverTest {
         }
     }
 
-    @Test
+    @Test(enabled=false)
     public void testFailoverWithSingleURLThatIsInvalid() throws SQLException {
         try {
 
-            DriverManager.getConnection("jdbc:robin:failover:attemptCount=3;jdbc:foo:bar");
+            DriverManager.getConnection("jdbc:robin:failover:attemptCount=3;template:jdbc:foo:bar");
 
             Assert.fail("Should have thrown an exception");
         } catch (SQLException sqlException) {
@@ -88,10 +90,10 @@ public class DriverTest {
 
     }
 
-    @Test
+    @Test(enabled=false)
     public void testInvalidWithSingleURL() throws SQLException {
         try {
-            DriverManager.getConnection("jdbc:robin:invalid:attemptCount=1;jdbc:h2:mem:foobar");
+            DriverManager.getConnection("jdbc:robin:invalid:attemptCount=1;template:jdbc:h2:mem:foobar");
 
             Assert.fail("Should have thrown an exception");
         } catch (SQLException sqlException) {

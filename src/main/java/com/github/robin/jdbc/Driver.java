@@ -17,8 +17,14 @@
 package com.github.robin.jdbc;
 
 import com.github.robin.jdbc.config.ConfigurationEntry;
+import com.github.robin.jdbc.config.ConnectionURLSyntaxException;
 
-import java.sql.*;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.DriverPropertyInfo;
+import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -65,7 +71,14 @@ public final class Driver implements java.sql.Driver {
 
         String factoryConfiguration = url.substring(JDBC_URL_PREFIX.length());
 
-        return connectionFactory.newConnection(factoryConfiguration, info);
+        try {
+            return connectionFactory.newConnection(factoryConfiguration, info);
+        } catch (ConnectionURLSyntaxException ex) {
+            throw new SQLException(String.format("Invalid connection URL syntax: %s. "
+                    + "Expected format: jdbc:%s:<%s|%s>:[configuration]:%s:<URL template>",
+                    ex.getMessage(), JDBC_URL_PREFIX,
+                    ConnectionFactory.FAILOVER, ConnectionFactory.LOAD_BALANCER, ConnectionFactory.TEMPLATE_PREFIX));
+        }
     }
 
     public boolean acceptsURL(String url) throws SQLException {

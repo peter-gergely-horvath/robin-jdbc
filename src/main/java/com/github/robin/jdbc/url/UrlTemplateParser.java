@@ -16,21 +16,11 @@
 
 package com.github.robin.jdbc.url;
 
-import java.util.Collections;
+import com.github.robin.jdbc.config.URLTemplateException;
+
 import java.util.List;
-import java.util.regex.Pattern;
+import java.util.Properties;
 
-public final class UrlPatternParser {
-
-    private static final UrlPatternParser INSTANCE = new UrlPatternParser();
-
-    public static UrlPatternParser getInstance() {
-        return INSTANCE;
-    }
-
-    public List<String> getURLs(String urlPattern) {
-        // TODO: implement actual pattern parsing here
-        return Collections.singletonList(urlPattern);
-    }
-
+public interface UrlTemplateParser {
+    List<String> getURLs(String urlPattern, Properties properties) throws URLTemplateException;
 }

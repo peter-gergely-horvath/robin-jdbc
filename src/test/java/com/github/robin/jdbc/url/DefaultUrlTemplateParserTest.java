@@ -16,25 +16,28 @@
 
 package com.github.robin.jdbc.url;
 
+import com.github.robin.jdbc.config.URLTemplateException;
 import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
 import java.util.List;
+import java.util.Properties;
 
-public class UrlPatternParserTest {
+public class DefaultUrlTemplateParserTest {
 
-    private UrlPatternParser urlPatternParser;
+    private DefaultUrlTemplateParser urlTemplateParser;
 
     @BeforeTest
     public void beforeTest() {
-        urlPatternParser = UrlPatternParser.getInstance();
+        urlTemplateParser = DefaultUrlTemplateParser.getInstance();
     }
 
     @Test
-    public void testSimplePattern() {
+    public void testSimplePattern() throws URLTemplateException {
 
-        List<String> urls = urlPatternParser.getURLs("jdbc:h2:mem:foobar0[1-3]");
+        String urlPattern = "#foreach( $index in [1..3] )jdbc:h2:mem:foobar0$index\n#end";
+        List<String> urls = urlTemplateParser.getURLs(urlPattern, new Properties());
 
         Assert.assertEquals(3, urls.size());
 
@@ -44,5 +47,20 @@ public class UrlPatternParserTest {
 
     }
 
+    @Test
+    public void testPatternWithRepeatedVariableReference() throws URLTemplateException {
+
+        String urlPattern = "#foreach( $index in [1..3] )jdbc:h2:mem:foobar0$index$index\n#end";
+
+
+        List<String> urls = urlTemplateParser.getURLs(urlPattern, new Properties());
+
+        Assert.assertEquals(3, urls.size());
+
+        Assert.assertEquals("jdbc:h2:mem:foobar011", urls.get(0));
+        Assert.assertEquals("jdbc:h2:mem:foobar022", urls.get(1));
+        Assert.assertEquals("jdbc:h2:mem:foobar033", urls.get(2));
+
+    }
 
 }
