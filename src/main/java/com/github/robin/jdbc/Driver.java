@@ -74,10 +74,10 @@ public final class Driver implements java.sql.Driver {
         try {
             return connectionFactory.newConnection(factoryConfiguration, info);
         } catch (ConnectionURLSyntaxException ex) {
-            throw new SQLException(String.format("Invalid connection URL syntax: %s. "
-                    + "Expected format: jdbc:%s:<%s|%s>:[configuration]:%s:<URL template>",
+            throw new SQLException(String.format("Invalid URL syntax: %s. "
+                    + "Expected format: %s<%s|%s>:[configuration]:%s<URL template>",
                     ex.getMessage(), JDBC_URL_PREFIX,
-                    ConnectionFactory.FAILOVER, ConnectionFactory.LOAD_BALANCER, ConnectionFactory.TEMPLATE_PREFIX));
+                    ConnectionFactory.FAILOVER, ConnectionFactory.LOAD_BALANCE, ConnectionFactory.TEMPLATE_PREFIX), ex);
         }
     }
 

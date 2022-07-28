@@ -32,7 +32,7 @@ final class ConnectionFactory {
 
     private static final Logger LOGGER = Logger.getLogger(ConnectionFactory.class.getName());
 
-    static final String LOAD_BALANCER = "loadbalancer";
+    static final String LOAD_BALANCE = "loadbalance";
     static final String FAILOVER = "failover";
     static final String TEMPLATE_PREFIX = "template:";
 
@@ -106,7 +106,7 @@ final class ConnectionFactory {
 
 
         if (connectionTypeName == null || connectionTypeName.trim().equals("")) {
-            throw new ConnectionURLSyntaxException("Invalid JDBC URL: connection type must be specified");
+            throw new ConnectionURLSyntaxException("connection type must be specified");
         }
 
         Configuration configuration = configurationFactory.newConfiguration(configurationSection, properties);
@@ -115,7 +115,7 @@ final class ConnectionFactory {
         List<String> urls = urlTemplateParser.getURLs(delegateUrlPattern, properties);
 
         switch (connectionTypeName.toLowerCase(Locale.ENGLISH)) {
-            case LOAD_BALANCER:
+            case LOAD_BALANCE:
                 urls = new LinkedList<>(urls);
                 Collections.shuffle(urls);
 
@@ -126,8 +126,8 @@ final class ConnectionFactory {
                 break;
 
             default:
-                throw MisconfigurationException.forMessage("Invalid JDBC URL: connection type must be "
-                        + "'%s' or '%s', but was: '%s'", LOAD_BALANCER, FAILOVER, connectionTypeName);
+                throw ConnectionURLSyntaxException.forMessage("connection type must be "
+                        + "'%s' or '%s', but was: '%s'", LOAD_BALANCE, FAILOVER, connectionTypeName);
         }
 
         return connect(urls, properties, configuration);

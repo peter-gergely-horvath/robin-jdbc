@@ -21,9 +21,79 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.sql.*;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 
 public class DriverTest {
+
+    @Test
+    public void testInvalidConnectionType() {
+        try {
+            DriverManager.getConnection("jdbc:robin:foobar:template:" +
+                            "#foreach( $index in [1..2] )jdbc:h2:mem:foobar0$index\n#end");
+
+            Assert.fail("Should have thrown an exception");
+        } catch (SQLException sqlException) {
+            Assert.assertTrue(sqlException.getMessage().contains(
+                    "Invalid URL syntax: connection type must be 'loadbalance' or 'failover', but was: 'foobar'"));
+        }
+    }
+
+    @Test
+    public void testNoTemplateExpression() {
+        try {
+            DriverManager.getConnection("jdbc:robin:foobar:template:jdbc:h2:mem:foobar1");
+
+            Assert.fail("Should have thrown an exception");
+        } catch (SQLException sqlException) {
+            Assert.assertTrue(sqlException.getMessage().contains(
+                    "Template evaluation yielded one line"));
+        }
+    }
+
+    @Test
+    public void testNoTemplateResult() {
+        try {
+            DriverManager.getConnection("jdbc:robin:foobar:template:" +
+                    "#foreach( $index in [1..1] )jdbc:h2:mem:foobar0$index#end");
+
+            Assert.fail("Should have thrown an exception");
+        } catch (SQLException sqlException) {
+            Assert.assertTrue(sqlException.getMessage().contains(
+                    "Template evaluation yielded one line"));
+        }
+    }
+
+    @Test
+    public void testSingleTemplateResult() {
+        try {
+            DriverManager.getConnection("jdbc:robin:foobar:template:" +
+                    "#foreach( $index in [1..1] )jdbc:h2:mem:foobar0$index\n#end");
+
+            Assert.fail("Should have thrown an exception");
+        } catch (SQLException sqlException) {
+            Assert.assertTrue(sqlException.getMessage().contains(
+                    "Template evaluation yielded one line"));
+        }
+    }
+
+    @Test
+    public void testInvalidTemplateResult() {
+        try {
+            DriverManager.getConnection("jdbc:robin:foobar:template:" +
+                    "#foreach( $index in [1..1] )jdbc:h2:mem:foobar0$index\n");
+
+            Assert.fail("Should have thrown an exception");
+        } catch (SQLException sqlException) {
+            Assert.assertTrue(sqlException.getMessage().contains(
+                    "Template evaluation failed: ensure the template adheres to Velocity template syntax"));
+        }
+    }
+
 
     @Test
     public void testSimpleFailover() throws SQLException {
@@ -31,74 +101,73 @@ public class DriverTest {
                              "jdbc:robin:failover:template:" +
                                      "#foreach( $index in [1..2] )jdbc:h2:mem:foobar0$index\n#end")) {
 
-            String queryResult;
-            try (PreparedStatement ps = connection.prepareStatement(
-                    "select * from INFORMATION_SCHEMA.INFORMATION_SCHEMA_CATALOG_NAME")) {
-                try (ResultSet rs = ps.executeQuery()) {
-                    rs.next();
-                    queryResult = rs.getString(1);
-                }
-            }
-
-            Assert.assertEquals("FOOBAR01", queryResult);
+            assertConnectedTo(connection, "FOOBAR01");
 
         }
     }
 
-    @Test(enabled=false)
-    public void testLoadbalancerWithSingleURLThatIsInvalid() throws SQLException {
-        try {
-            DriverManager.getConnection(
-                    "jdbc:robin:loadbalancer:attemptCount=3;template:jdbc:foo:bar");
-
-            Assert.fail("Should have thrown an exception");
-        } catch (SQLException sqlException) {
-            Assert.assertTrue(sqlException.getMessage().contains("Could not connect to any of the URLs"));
-        }
-
-    }
-
-    @Test(enabled=false)
-    public void testFailoverWithSingleURL() throws SQLException {
+    @Test
+    public void testSimpleLoadBalance() throws SQLException {
         try (Connection connection = DriverManager.getConnection(
-                "jdbc:robin:failover:attemptCount=3;template:jdbc:h2:mem:foobar")) {
+                "jdbc:robin:loadbalance:template:" +
+                        "#foreach( $index in [1..2] )jdbc:h2:mem:foobar0$index\n#end")) {
 
-            String queryResult;
-            try (PreparedStatement ps = connection.prepareStatement(
-                    "select * from INFORMATION_SCHEMA.INFORMATION_SCHEMA_CATALOG_NAME")) {
-                try (ResultSet rs = ps.executeQuery()) {
-                    rs.next();
-                    queryResult = rs.getString(1);
-                }
+            assertConnectedToAny(connection, "FOOBAR01", "FOOBAR02");
+
+        }
+    }
+
+    @Test
+    public void testMultiLoadBalance() throws SQLException {
+
+        Set<String> expectedDatabaseNames = IntStream.range(1, 9)
+                .mapToObj(it -> String.format("FOOBAR%02d", it))
+                .collect(Collectors.toSet());
+
+        String connectUrl = "jdbc:robin:loadbalance:template:" +
+                "#foreach( $index in [1..8] )jdbc:h2:mem:foobar0$index\n#end";
+
+        HashSet<String> databaseNames = new HashSet<>();
+
+        final int testCount = 1000;
+        for (int i=0; i<testCount; i++) {
+            try (Connection connection = DriverManager.getConnection(connectUrl)) {
+
+                databaseNames.add(getDatabaseNameFrom(connection));
             }
-
-            Assert.assertEquals("FOOBAR", queryResult);
-
-        }
-    }
-
-    @Test(enabled=false)
-    public void testFailoverWithSingleURLThatIsInvalid() throws SQLException {
-        try {
-
-            DriverManager.getConnection("jdbc:robin:failover:attemptCount=3;template:jdbc:foo:bar");
-
-            Assert.fail("Should have thrown an exception");
-        } catch (SQLException sqlException) {
-            Assert.assertTrue(sqlException.getMessage().contains("Could not connect to any of the URLs"));
         }
 
+        Assert.assertEquals(databaseNames, expectedDatabaseNames);
     }
 
-    @Test(enabled=false)
-    public void testInvalidWithSingleURL() throws SQLException {
-        try {
-            DriverManager.getConnection("jdbc:robin:invalid:attemptCount=1;template:jdbc:h2:mem:foobar");
 
-            Assert.fail("Should have thrown an exception");
-        } catch (SQLException sqlException) {
-            Assert.assertTrue(sqlException.getMessage().contains(
-                    "Invalid JDBC URL: connection type must be 'loadbalancer' or 'failover'"));
+
+    private static void assertConnectedTo(Connection connection, String expectedDatabaseName)
+            throws SQLException {
+        String actualDatabaseName = getDatabaseNameFrom(connection);
+
+        Assert.assertEquals(actualDatabaseName, expectedDatabaseName);
+    }
+
+    private static void assertConnectedToAny(Connection connection, String... expectedDatabaseNames)
+            throws SQLException {
+
+        String actualDatabaseName = getDatabaseNameFrom(connection);
+
+        Set<String> expectedDatabaseNamesSet = new HashSet<>(Arrays.asList(expectedDatabaseNames));
+
+        Assert.assertTrue(expectedDatabaseNamesSet.contains(actualDatabaseName));
+    }
+
+
+
+    private static String getDatabaseNameFrom(Connection connection) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement(
+                "select * from INFORMATION_SCHEMA.INFORMATION_SCHEMA_CATALOG_NAME")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getString(1);
+            }
         }
     }
 }
