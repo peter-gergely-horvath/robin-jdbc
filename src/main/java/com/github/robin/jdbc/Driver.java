@@ -18,6 +18,8 @@ package com.github.robin.jdbc;
 
 import com.github.robin.jdbc.config.ConfigurationEntry;
 import com.github.robin.jdbc.config.ConnectionURLSyntaxException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 import java.sql.Connection;
@@ -26,21 +28,19 @@ import java.sql.SQLException;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
 
 public final class Driver implements java.sql.Driver {
 
-    private static final Logger LOGGER = Logger.getLogger(Driver.class.getName());
-    private static final Logger PARENT_LOGGER = Logger.getLogger(Driver.class.getPackage().getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(Driver.class);
 
     static {
         try {
             DriverManager.registerDriver(new Driver());
-            LOGGER.log(Level.FINEST, "Robin JDBC Driver loaded and registered to DriverManager");
+            LOGGER.debug("Robin JDBC Driver loaded and registered to DriverManager");
         } catch (SQLException ex) {
             String errorMessage = "Could not register to DriverManager: " + Driver.class.getName();
-            LOGGER.log(Level.SEVERE, errorMessage, ex);
+            LOGGER.error(errorMessage, ex);
             throw new RuntimeException(errorMessage, ex);
         }
     }
@@ -106,7 +106,7 @@ public final class Driver implements java.sql.Driver {
         return false;
     }
 
-    public Logger getParentLogger() throws SQLFeatureNotSupportedException {
-        return PARENT_LOGGER;
+    public java.util.logging.Logger getParentLogger() throws SQLFeatureNotSupportedException {
+        throw new SQLFeatureNotSupportedException("java.util.logging is not used by this driver");
     }
 }

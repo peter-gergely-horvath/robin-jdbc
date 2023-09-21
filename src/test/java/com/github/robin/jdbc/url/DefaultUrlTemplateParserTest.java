@@ -33,6 +33,7 @@ public class DefaultUrlTemplateParserTest {
         urlTemplateParser = DefaultUrlTemplateParser.getInstance();
     }
 
+
     @Test
     public void testSimplePattern() throws URLTemplateException {
 

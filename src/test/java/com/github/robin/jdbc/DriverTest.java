@@ -46,7 +46,7 @@ public class DriverTest {
     @Test
     public void testNoTemplateExpression() {
         try {
-            DriverManager.getConnection("jdbc:robin:foobar:template:jdbc:h2:mem:foobar1");
+            DriverManager.getConnection("jdbc:robin:failover:template:jdbc:h2:mem:foobar1");
 
             Assert.fail("Should have thrown an exception");
         } catch (SQLException sqlException) {
@@ -58,7 +58,7 @@ public class DriverTest {
     @Test
     public void testNoTemplateResult() {
         try {
-            DriverManager.getConnection("jdbc:robin:foobar:template:" +
+            DriverManager.getConnection("jdbc:robin:failover:template:" +
                     "#foreach( $index in [1..1] )jdbc:h2:mem:foobar0$index#end");
 
             Assert.fail("Should have thrown an exception");
@@ -71,7 +71,7 @@ public class DriverTest {
     @Test
     public void testSingleTemplateResult() {
         try {
-            DriverManager.getConnection("jdbc:robin:foobar:template:" +
+            DriverManager.getConnection("jdbc:robin:failover:template:" +
                     "#foreach( $index in [1..1] )jdbc:h2:mem:foobar0$index\n#end");
 
             Assert.fail("Should have thrown an exception");
@@ -84,7 +84,7 @@ public class DriverTest {
     @Test
     public void testInvalidTemplateResult() {
         try {
-            DriverManager.getConnection("jdbc:robin:foobar:template:" +
+            DriverManager.getConnection("jdbc:robin:failover:template:" +
                     "#foreach( $index in [1..1] )jdbc:h2:mem:foobar0$index\n");
 
             Assert.fail("Should have thrown an exception");

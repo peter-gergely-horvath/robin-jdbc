@@ -31,4 +31,11 @@ public final class Configuration {
     public void setAttemptCount(int attemptCount) {
         this.attemptCount = attemptCount;
     }
+
+    @Override
+    public String toString() {
+        return "Configuration{" +
+                "attemptCount=" + attemptCount +
+                '}';
+    }
 }

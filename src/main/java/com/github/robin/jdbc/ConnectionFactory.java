@@ -20,17 +20,18 @@ package com.github.robin.jdbc;
 import com.github.robin.jdbc.config.*;
 import com.github.robin.jdbc.url.DefaultUrlTemplateParser;
 import com.github.robin.jdbc.url.UrlTemplateParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
 
 final class ConnectionFactory {
 
-    private static final Logger LOGGER = Logger.getLogger(ConnectionFactory.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConnectionFactory.class);
 
     static final String LOAD_BALANCE = "loadbalance";
     static final String FAILOVER = "failover";
@@ -59,7 +60,13 @@ final class ConnectionFactory {
     Connection newConnection(String factoryConfiguration, Properties properties)
             throws SQLException, ConnectionURLSyntaxException {
 
+        Objects.requireNonNull(factoryConfiguration);
+
+
         try {
+            LOGGER.trace("factoryConfiguration={}", factoryConfiguration);
+            LOGGER.trace("properties={}", properties);
+
             String[] connectionTypeAndTheRest = factoryConfiguration.split(":", 2);
 
             if (connectionTypeAndTheRest.length != 2) {
@@ -86,7 +93,7 @@ final class ConnectionFactory {
             }
 
             String urlTemplate = rest.substring(beginOfURLTemplate + TEMPLATE_PREFIX.length());
-            LOGGER.log(Level.FINEST, ()->"URL Template is: " + urlTemplate);
+            LOGGER.debug("URL Template extracted from connection string: {}", urlTemplate);
 
             return newConnection(connectionType, configurationSection, urlTemplate, properties);
 
@@ -118,10 +125,12 @@ final class ConnectionFactory {
             case LOAD_BALANCE:
                 urls = new LinkedList<>(urls);
                 Collections.shuffle(urls);
+                LOGGER.debug("Connection type is '{}', shuffled URL list: {}", connectionTypeName, urls);
 
                 break;
 
             case FAILOVER:
+                LOGGER.debug("Connection type is '{}', using user-defined URL order: {}", connectionTypeName, urls);
                 // no-op, we use the original URL order
                 break;
 
@@ -134,31 +143,37 @@ final class ConnectionFactory {
 
     }
 
-    private Connection connect(List<String> urls,
+    private Connection connect(List<String> allUrls,
                                Properties properties,
                                Configuration configuration) throws SQLException {
 
-        final int attemptCount = getAttemptCount(configuration, urls.size());
+        final int attemptCount = getAttemptCount(configuration, allUrls.size());
+        LOGGER.debug("Will attempt {} URLs out of {}", attemptCount, allUrls.size());
+
+        final List<String> urlsToTry = allUrls.subList(0, attemptCount);
 
         List<SQLException> caughtExceptions = new LinkedList<>();
-
-        for (int i = 0; i < attemptCount; ++i) {
-            String url = urls.get(i);
+        for (String url : urlsToTry) {
             try {
-                LOGGER.log(Level.INFO, () -> "Connecting to URL: " + url);
+                LOGGER.info("Connecting to URL: {}", url);
                 return DriverManager.getConnection(url, properties);
 
             } catch (SQLException sqlException) {
-                LOGGER.log(Level.WARNING, sqlException, () -> "Exception connecting to URL: " + url);
+                LOGGER.warn("Exception connecting to URL: " + url, sqlException);
                 caughtExceptions.add(sqlException);
             }
         }
 
-        LOGGER.log(Level.SEVERE, "Could not connect to any of the URLs: " + urls);
+        String errorMessage;
+        if (urlsToTry.size() == allUrls.size()) {
+            errorMessage = String.format("Could not connect to any of the URLs: %s", urlsToTry);
+        } else {
+            errorMessage = String.format(
+                    "Maximum attempt count, %s reached trying to connect to URLs: %s", urlsToTry.size(), allUrls);
+        }
+        LOGGER.error(errorMessage);
 
-        SQLException sqlException = new SQLException(String.format(
-                "Could not connect to any of the URLs, giving up after %s attempt(s)",
-                caughtExceptions.size()));
+        SQLException sqlException = new SQLException(errorMessage);
 
         for (Exception caughtException : caughtExceptions) {
             sqlException.addSuppressed(caughtException);
@@ -173,18 +188,16 @@ final class ConnectionFactory {
         int configuredAttemptCount = configuration.getAttemptCount();
         if (configuredAttemptCount == Configuration.ATTEMPT_ALL) {
             attemptCount = urlCount;
-            LOGGER.log(Level.FINEST,
-                    () -> String.format("AttemptCount is %s, probing all %s URLs",
-                            Configuration.ATTEMPT_ALL, attemptCount));
+            LOGGER.trace("AttemptCount is {}, probing all {} URLs",
+                    Configuration.ATTEMPT_ALL, attemptCount);
         } else {
             attemptCount = Math.min(configuredAttemptCount, urlCount);
-            LOGGER.log(Level.FINEST,
-                    () -> String.format("Configured AttemptCount: %s, actual attemptCount: %s",
-                            configuredAttemptCount, attemptCount));
+            LOGGER.trace("Configured AttemptCount: {}, actual attemptCount: {}",
+                    configuredAttemptCount, attemptCount);
         }
 
         if (attemptCount == 1) {
-            LOGGER.log(Level.WARNING, "Only one URL will be attempted: no no failover or load balancing is provided");
+            LOGGER.warn("Only one URL will be attempted: no no fail-over or load balancing is provided");
         }
 
         return attemptCount;
