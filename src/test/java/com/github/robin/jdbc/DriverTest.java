@@ -34,7 +34,7 @@ public class DriverTest {
     public void testInvalidConnectionType() {
         try {
             DriverManager.getConnection("jdbc:robin:foobar:template:" +
-                            "#foreach( $index in [1..2] )jdbc:h2:mem:foobar0$index\n#end");
+                    "#@jdbcUrlsFrom( [1..2] )  jdbc:h2:mem:foobar0$value #end");
 
             Assert.fail("Should have thrown an exception");
         } catch (SQLException sqlException) {
@@ -56,7 +56,7 @@ public class DriverTest {
     }
 
     @Test
-    public void testNoTemplateResult() {
+    public void testCustomTemplateWithSingleResult() {
         try {
             DriverManager.getConnection("jdbc:robin:failover:template:" +
                     "#foreach( $index in [1..1] )jdbc:h2:mem:foobar0$index#end");
@@ -69,10 +69,20 @@ public class DriverTest {
     }
 
     @Test
+    public void testCustomTemplate() throws SQLException {
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:robin:failover:template:" +
+                        "#foreach( $index in [1..2] )jdbc:h2:mem:foobar0$index#end")) {
+
+            assertConnectedTo(connection, "FOOBAR01");
+        }
+    }
+
+    @Test
     public void testSingleTemplateResult() {
         try {
             DriverManager.getConnection("jdbc:robin:failover:template:" +
-                    "#foreach( $index in [1..1] )jdbc:h2:mem:foobar0$index\n#end");
+                    "#@jdbcUrlsFrom( [1..1] )  jdbc:h2:mem:foobar0$value #end");
 
             Assert.fail("Should have thrown an exception");
         } catch (SQLException sqlException) {
@@ -85,7 +95,7 @@ public class DriverTest {
     public void testInvalidTemplateResult() {
         try {
             DriverManager.getConnection("jdbc:robin:failover:template:" +
-                    "#foreach( $index in [1..1] )jdbc:h2:mem:foobar0$index\n");
+                    "#@jdbcUrlsFrom( [1..2] )  jdbc:h2:mem:foobar0$value"); // we do not close it with #end
 
             Assert.fail("Should have thrown an exception");
         } catch (SQLException sqlException) {
@@ -99,7 +109,7 @@ public class DriverTest {
     public void testSimpleFailover() throws SQLException {
         try (Connection connection = DriverManager.getConnection(
                              "jdbc:robin:failover:template:" +
-                                     "#foreach( $index in [1..2] )jdbc:h2:mem:foobar0$index\n#end")) {
+                                     "#@jdbcUrlsFrom( [1..2] )  jdbc:h2:mem:foobar0$value  #end")) {
 
             assertConnectedTo(connection, "FOOBAR01");
 
@@ -110,7 +120,7 @@ public class DriverTest {
     public void testSimpleLoadBalance() throws SQLException {
         try (Connection connection = DriverManager.getConnection(
                 "jdbc:robin:loadbalance:template:" +
-                        "#foreach( $index in [1..2] )jdbc:h2:mem:foobar0$index\n#end")) {
+                        "#@jdbcUrlsFrom( [1..2] )  jdbc:h2:mem:foobar0$value  #end")) {
 
             assertConnectedToAny(connection, "FOOBAR01", "FOOBAR02");
 
@@ -120,12 +130,12 @@ public class DriverTest {
     @Test
     public void testMultiLoadBalance() throws SQLException {
 
-        Set<String> expectedDatabaseNames = IntStream.range(1, 9)
+        Set<String> expectedDatabaseNames = IntStream.range(1, 15)
                 .mapToObj(it -> String.format("FOOBAR%02d", it))
                 .collect(Collectors.toSet());
 
         String connectUrl = "jdbc:robin:loadbalance:template:" +
-                "#foreach( $index in [1..8] )jdbc:h2:mem:foobar0$index\n#end";
+                "#@jdbcUrlsFrom( ['01', '02', '03'] )  jdbc:h2:mem:foobar$value  #end";
 
         HashSet<String> databaseNames = new HashSet<>();
 

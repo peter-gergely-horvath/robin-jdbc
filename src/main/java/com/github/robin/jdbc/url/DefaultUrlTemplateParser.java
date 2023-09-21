@@ -33,10 +33,14 @@ public final class DefaultUrlTemplateParser implements UrlTemplateParser {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultUrlTemplateParser.class);
 
+    private static final String MACRO_NAME = "jdbcUrlsFrom";
+    public static final String MACRO_CODE = String.format(
+                    "#macro( %s $inputList )\n" +
+                    "#foreach( $value in $inputList )$!bodyContent\n#end\n" +
+                    "#end\n", MACRO_NAME);
     private static final String URL_SEPARATOR = "\n";
 
     private static final DefaultUrlTemplateParser INSTANCE = new DefaultUrlTemplateParser();
-
 
     public static DefaultUrlTemplateParser getInstance() {
         return INSTANCE;
@@ -62,24 +66,14 @@ public final class DefaultUrlTemplateParser implements UrlTemplateParser {
                 properties.forEach((key, value) -> context.put(String.valueOf(key), value));
             }
 
-            Template template = Template.parseFrom(new StringReader(urlTemplate));
-            String expressionOutput = template.evaluate(context);
+            String fullTemplate = MACRO_CODE + urlTemplate;
 
-            List<String> urls = Arrays.stream(expressionOutput.split(URL_SEPARATOR))
-                    .map(String::trim)
-                    .collect(Collectors.toList());
+            Template template = Template.parseFrom(new StringReader(fullTemplate));
 
-            LOGGER.debug("Template evaluated to {} URLs: {}", urls.size(), urls);
+            String templateResult = template.evaluate(context).trim();
 
-            if (urls.size() == 0) {
-                throw new URLTemplateException("Template evaluation yielded no URL");
-            } else if (urls.size() == 1) {
-                throw new URLTemplateException(
-                        "Template evaluation yielded one line: multiple lines are expected "
-                                + "(remember to add '\n' at the end of template): " + urls.get(0));
-            }
+            return extractUrlsFromTemplateResult(templateResult);
 
-            return urls;
         } catch (ParseException pex) {
             LOGGER.error("User-defined Velocity template is invalid: {}", urlTemplate);
 
@@ -91,6 +85,37 @@ public final class DefaultUrlTemplateParser implements UrlTemplateParser {
             throw new URLTemplateException(
                     "I/O error constructing template", ioe);
 
+        }
+    }
+
+    private static List<String> extractUrlsFromTemplateResult(String templateResult) throws URLTemplateException {
+
+        String templateResultLines;
+        if (templateResult.contains(URL_SEPARATOR)) {
+            templateResultLines = templateResult;
+        } else {
+            templateResultLines = templateResult.replaceAll("(jdbc:\\w+:)", "\n$1");
+        }
+
+
+        List<String> urls = Arrays.stream(templateResultLines.trim().split(URL_SEPARATOR))
+                .map(String::trim)
+                .collect(Collectors.toList());
+
+        LOGGER.debug("Template evaluated to {} URLs: {}", urls.size(), urls);
+
+        switch (urls.size()) {
+            case 0:
+                throw new URLTemplateException("Template evaluation yielded no URL");
+
+            case 1:
+                throw new URLTemplateException(
+                        "Template evaluation yielded one line: multiple lines are expected. "
+                                + "(Try using #@" + MACRO_NAME + " macro. "
+                                + "The only returned URL is: " + urls.get(0));
+
+            default:
+                return urls;
         }
     }
 
