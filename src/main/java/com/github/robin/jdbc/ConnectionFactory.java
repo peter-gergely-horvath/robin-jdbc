@@ -119,7 +119,7 @@ final class ConnectionFactory {
         Configuration configuration = configurationFactory.newConfiguration(configurationSection, properties);
 
 
-        List<String> urls = urlTemplateParser.getURLs(delegateUrlPattern, properties);
+        List<String> urls = urlTemplateParser.getUrls(delegateUrlPattern, properties);
 
         switch (connectionTypeName.toLowerCase(Locale.ENGLISH)) {
             case LOAD_BALANCE:

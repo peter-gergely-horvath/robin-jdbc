@@ -34,8 +34,8 @@ public final class Configuration {
 
     @Override
     public String toString() {
-        return "Configuration{" +
-                "attemptCount=" + attemptCount +
-                '}';
+        return "Configuration{"
+                + "attemptCount=" + attemptCount
+                + '}';
     }
 }

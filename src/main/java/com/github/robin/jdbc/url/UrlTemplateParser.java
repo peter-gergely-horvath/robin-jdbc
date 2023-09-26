@@ -22,5 +22,5 @@ import java.util.List;
 import java.util.Properties;
 
 public interface UrlTemplateParser {
-    List<String> getURLs(String urlPattern, Properties properties) throws URLTemplateException;
+    List<String> getUrls(String urlPattern, Properties properties) throws URLTemplateException;
 }

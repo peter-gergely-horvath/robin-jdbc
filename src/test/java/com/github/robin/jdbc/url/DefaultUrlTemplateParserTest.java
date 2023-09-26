@@ -38,7 +38,7 @@ public class DefaultUrlTemplateParserTest {
     public void testSimplePattern() throws URLTemplateException {
 
         String urlPattern = "#foreach( $index in [1..3] )jdbc:h2:mem:foobar0$index\n#end";
-        List<String> urls = urlTemplateParser.getURLs(urlPattern, new Properties());
+        List<String> urls = urlTemplateParser.getUrls(urlPattern, new Properties());
 
         Assert.assertEquals(3, urls.size());
 
@@ -54,7 +54,7 @@ public class DefaultUrlTemplateParserTest {
         String urlPattern = "#foreach( $index in [1..3] )jdbc:h2:mem:foobar0$index$index\n#end";
 
 
-        List<String> urls = urlTemplateParser.getURLs(urlPattern, new Properties());
+        List<String> urls = urlTemplateParser.getUrls(urlPattern, new Properties());
 
         Assert.assertEquals(3, urls.size());
 

@@ -128,15 +128,42 @@ public class DriverTest {
     }
 
     @Test
-    public void testMultiLoadBalance() throws SQLException {
+    public void testLoadBalanceWithList() throws SQLException {
 
-        Set<String> expectedDatabaseNames = IntStream.range(1, 15)
+        String connectUrl = "jdbc:robin:loadbalance:template:" +
+                "#@jdbcUrlsFrom( [8..12] )  jdbc:h2:mem:foobar#formatter('%02d', $value)  #end";
+
+        Set<String> expectedDatabaseNames = IntStream.range(8, 13)
                 .mapToObj(it -> String.format("FOOBAR%02d", it))
                 .collect(Collectors.toSet());
 
-        String connectUrl = "jdbc:robin:loadbalance:template:" +
-                "#@jdbcUrlsFrom( ['01', '02', '03'] )  jdbc:h2:mem:foobar$value  #end";
+        assertConnectedToAll(connectUrl, expectedDatabaseNames);
+    }
 
+    @Test
+    public void testLoadBalanceWithRange() throws SQLException {
+
+        String connectUrl = "jdbc:robin:loadbalance:template:" +
+                "#@jdbcUrlsFrom( ['08', '09', '10', '11', '12'] )  jdbc:h2:mem:foobar$value  #end";
+
+        Set<String> expectedDatabaseNames = IntStream.range(8, 13)
+                .mapToObj(it -> String.format("FOOBAR%02d", it))
+                .collect(Collectors.toSet());
+
+        assertConnectedToAll(connectUrl, expectedDatabaseNames);
+    }
+
+
+
+    private static void assertConnectedTo(Connection connection, String expectedDatabaseName)
+            throws SQLException {
+        String actualDatabaseName = getDatabaseNameFrom(connection);
+
+        Assert.assertEquals(actualDatabaseName, expectedDatabaseName);
+    }
+
+    private static void assertConnectedToAll(String connectUrl,
+                                             Set<String> expectedDatabaseNames) throws SQLException {
         HashSet<String> databaseNames = new HashSet<>();
 
         final int testCount = 1000;
@@ -148,15 +175,6 @@ public class DriverTest {
         }
 
         Assert.assertEquals(databaseNames, expectedDatabaseNames);
-    }
-
-
-
-    private static void assertConnectedTo(Connection connection, String expectedDatabaseName)
-            throws SQLException {
-        String actualDatabaseName = getDatabaseNameFrom(connection);
-
-        Assert.assertEquals(actualDatabaseName, expectedDatabaseName);
     }
 
     private static void assertConnectedToAny(Connection connection, String... expectedDatabaseNames)

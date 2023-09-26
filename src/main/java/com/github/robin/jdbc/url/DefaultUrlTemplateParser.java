@@ -33,21 +33,30 @@ public final class DefaultUrlTemplateParser implements UrlTemplateParser {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultUrlTemplateParser.class);
 
-    private static final String MACRO_NAME = "jdbcUrlsFrom";
-    public static final String MACRO_CODE = String.format(
-                    "#macro( %s $inputList )\n" +
-                    "#foreach( $value in $inputList )$!bodyContent\n#end\n" +
-                    "#end\n", MACRO_NAME);
+    private static final String GENERATOR_MACRO_NAME = "jdbcUrlsFrom";
+
+    private static final String FORMATTER_MACRO_NAME = "formatter";
+    private static final String GENERATOR_MACRO_CODE = String.format(
+                            "#macro( %s $inputList )\n"
+                            + "#foreach( $value in $inputList )$!bodyContent\n#end\n"
+                            + "#end\n", GENERATOR_MACRO_NAME);
+
+    private static final String FORMAT_MACRO_CODE = String.format(
+            "#macro( %s $formatString $value )\n"
+                    + "$formatter.format($formatString, $value)\n"
+                    + "#end\n", FORMATTER_MACRO_NAME);
+
     private static final String URL_SEPARATOR = "\n";
 
     private static final DefaultUrlTemplateParser INSTANCE = new DefaultUrlTemplateParser();
+
 
     public static DefaultUrlTemplateParser getInstance() {
         return INSTANCE;
     }
 
     @Override
-    public List<String> getURLs(String urlTemplate, Properties properties) throws URLTemplateException {
+    public List<String> getUrls(String urlTemplate, Properties properties) throws URLTemplateException {
 
         try {
             LOGGER.debug("Template String: {}", urlTemplate.replaceAll(URL_SEPARATOR, "\\\\n"));
@@ -66,7 +75,9 @@ public final class DefaultUrlTemplateParser implements UrlTemplateParser {
                 properties.forEach((key, value) -> context.put(String.valueOf(key), value));
             }
 
-            String fullTemplate = MACRO_CODE + urlTemplate;
+            context.put(FORMATTER_MACRO_NAME, FormatUtil.INSTANCE);
+
+            String fullTemplate = GENERATOR_MACRO_CODE + FORMAT_MACRO_CODE + urlTemplate;
 
             Template template = Template.parseFrom(new StringReader(fullTemplate));
 
@@ -80,10 +91,9 @@ public final class DefaultUrlTemplateParser implements UrlTemplateParser {
             throw new URLTemplateException(
                     "Template evaluation failed: ensure the template adheres to Velocity template syntax", pex);
         } catch (IOException ioe) {
-            LOGGER.error("I/O error constructing template: {}", urlTemplate);
+            LOGGER.error("I/O error processing template: {}", urlTemplate);
 
-            throw new URLTemplateException(
-                    "I/O error constructing template", ioe);
+            throw new URLTemplateException("I/O error processing template", ioe);
 
         }
     }
@@ -110,8 +120,9 @@ public final class DefaultUrlTemplateParser implements UrlTemplateParser {
 
             case 1:
                 throw new URLTemplateException(
-                        "Template evaluation yielded one line: multiple lines are expected. "
-                                + "(Try using #@" + MACRO_NAME + " macro. "
+                        "Template evaluation yielded one line, while multiple lines are expected. "
+                                + "(Try using #@" + GENERATOR_MACRO_NAME + " macro or "
+                                + "output a newline for each URL in a custom template. "
                                 + "The only returned URL is: " + urls.get(0));
 
             default:
